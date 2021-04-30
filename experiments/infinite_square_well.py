@@ -3,6 +3,8 @@ import numpy as np
 from scipy.constants import hbar, m_e
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import copy
+from collections import defaultdict
 
 # Settings
 
@@ -54,6 +56,9 @@ def perturb(grid, sig=0.5):
 
     return x
 
+def c_update(i):
+    return -4 + i
+
 
 
 
@@ -88,8 +93,13 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
     # Domain intialization
     grid = torch.linspace(x_min, x_max, n_train).reshape(-1, 1)
 
+    # Storage of intermediate networks
+    stub = lambda: (None, 1e20)
+    storage = defaultdict(stub)
+
     # Histories
     En_history = []
+    # Commented out as they take too much memory
     #L_drive_history = []
     #L_PDE_history = []
     #L_f_history = []
@@ -99,7 +109,8 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
     epoch_loss_history = []
 
     # Driver
-    c = -4*E_char
+    c = c_update(0)
+    c_index = 0
 
     bar = tqdm(range(epochs), desc="Loss: ~")
 
@@ -130,7 +141,8 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
 
             # Update driver
             if epoch % 2500 == 0:
-                c += E_char
+                c_index += 1
+                c = c_update(c_index)
             
             L_drive = torch.mean(torch.exp(-En + c))
             L_lambda = 1/(torch.mean(En**2) + eps)
@@ -158,6 +170,13 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
             batch_start += batch_size
             batch_end += batch_size
         
+        
+        E_bin = abs(En[0].data.numpy()[0]//10)
+        criterion = L_PDE.clone().detach().numpy()
+        if criterion < storage[E_bin][1]:
+            storage[E_bin] = (copy.deepcopy(network), criterion)
+
+        
         epoch_loss_history.append(epoch_loss)
         bar.set_description(f"Loss: {epoch_loss:.4e}")
 
@@ -172,14 +191,37 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
         #"c": c_history,
         "epoch": epoch_loss_history
     }
-    return network, histories
+    return network, histories, storage
 
+model, hist, storage = train(50, int(125e3), 100, 8e-3, 1)
 
-model, hist = train(50, int(125e3), 100, 8e-3, 1)
-
-input()
 plt.loglog(hist["epoch"])
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Loss over the epochs on loglog scale")
+plt.grid()
+plt.show()
+plt.plot(hist["En"])
+plt.xlabel("Epochs")
+plt.ylabel("Eigenvalue")
+plt.title("Change of eigenvalue over epochs")
+plt.grid()
 plt.show()
 
-plt.plot(hist["En"])
-plt.show()
+x = torch.linspace(x_min, x_max, 400).reshape(-1, 1)
+
+for i in range(11):
+    if storage[i][0]:
+        E = storage[i][0].Ein(torch.tensor([1.0]))[0].detach().numpy()
+        print(f"At index {i} found energy {E}")
+        nn_out, _ = storage[i][0].forward(x)
+        psi = compose_psi(x, nn_out)
+        plt.plot(x.reshape(-1).numpy(), psi.reshape(-1).detach().numpy())
+        plt.xlabel("x")
+        plt.ylabel("$\Psi(x)$")
+        plt.xlim(x_min, x_max)
+        plt.grid()
+        plt.title(f"Eigenfunction {i}")
+        plt.show()
+
+
