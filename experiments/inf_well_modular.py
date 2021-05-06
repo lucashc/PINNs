@@ -2,6 +2,7 @@ from models.model import EigenvalueProblemModel
 from models.helper import perturb1D, Sin, dfx
 import torch
 from functools import partial
+import numpy as np
 L = 1
 x_min = 0
 x_max = L
@@ -27,3 +28,4 @@ grid = torch.linspace(x_min, x_max, 100).reshape(-1, 1)
 model = EigenvalueProblemModel([1, 10, 10, 1], Sin, compose_psi, PDE_loss)
 model.train(driver, grid, partial(perturb1D, x_min=x_min, x_max=x_max), int(125e3), 100, 1)
 model.plot_history()
+np.save("En.npy", np.array(model.histories["En"]))

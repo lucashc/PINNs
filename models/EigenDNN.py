@@ -13,7 +13,8 @@ class EigenDNN(torch.nn.Module):
         l = []
 
         # Eigenvalue layer
-        self.Eig = torch.nn.Linear(1,1)
+        self.Eig = torch.nn.Linear(1,1, bias = False)
+        self.Eig.weight.data.fill_(1.0)
 
         # Rest of network
         for i in range(self.depth - 1):

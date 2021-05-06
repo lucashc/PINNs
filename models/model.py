@@ -4,7 +4,6 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 
-eps = 1e-6
 
 
 class EigenvalueProblemModel:
@@ -16,8 +15,8 @@ class EigenvalueProblemModel:
     
     def train(self, driver, grid, perturb, epochs, n_train, minibatches=1):
         # Histories
-        En_history = []
-        epoch_loss_history = []
+        En_history = np.zeros(epochs*minibatches)
+        epoch_loss_history = np.zeros(epochs)
         c = driver(0)
 
         bar = tqdm(range(epochs))
@@ -38,7 +37,7 @@ class EigenvalueProblemModel:
             for n in range(minibatches):
                 X_minibatch = X_batch[batch_start:batch_end]
                 nn, En = self.dnn(X_minibatch)
-                En_history.append(En[0].data.numpy()[0])
+                En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
 
                 psi = self.composition(X_minibatch, nn)
                 L_PDE = self.PDE_loss(X_minibatch, psi, En)
@@ -63,7 +62,7 @@ class EigenvalueProblemModel:
                 batch_start += batch_size
                 batch_end += batch_size
             
-            epoch_loss_history.append(epoch_loss)
+            epoch_loss_history[epoch] = epoch_loss
             bar.set_description(f"Loss: {epoch_loss:.4e}")
     
         self.histories = {
@@ -72,10 +71,11 @@ class EigenvalueProblemModel:
         }
     
     def plot_history(self):
-        plt.loglog(self.histories["epoch"])
+        plt.plot(self.histories["epoch"])
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
-        plt.title("Loss over the epochs on loglog scale")
+        plt.yscale("log")
+        plt.title("Loss over the epochs on log scale")
         plt.grid()
         plt.show()
         plt.plot(self.histories["En"])
