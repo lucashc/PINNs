@@ -3,6 +3,8 @@ from .EigenDNN import EigenDNN
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import copy
 
 
 
@@ -12,14 +14,33 @@ class EigenvalueProblemModel:
         self.optimizer = torch.optim.Adam(self.dnn.parameters(), lr=lr, betas=betas)
         self.composition = composition
         self.PDE_loss = PDE_loss
+        self.En_history = None
+        self.epoch_loss_history = None
+        # Format is: (Loss, En, Network)
+        stub = lambda: (float('inf'), None, None)
+        self.eigenfunctions = defaultdict(stub)
     
-    def train(self, driver, grid, perturb, epochs, n_train, minibatches=1):
+    def detect(self, index, L_PDE, drive_step, max_required_loss):
+        En = self.En_history[index]
+        # Empirically, rtol=0.001 and drive_step//3 seem like good factors
+        previous_close = np.sum(np.isclose(self.En_history[index-drive_step:index], En, atol=0, rtol=0.001))
+        if previous_close > drive_step//3:
+            marker = f"{En:1.1e}"
+            if L_PDE < max_required_loss and L_PDE < self.eigenfunctions[marker][0]:
+                if self.eigenfunctions[marker][1] is None:
+                    tqdm.write(f"Found new eigenfunction {marker} with energy {En} and loss {L_PDE}")
+                else:
+                    tqdm.write(f"    Detected better eigenfunction {marker} with energy {En} and loss {L_PDE}")
+                self.eigenfunctions[marker] = (L_PDE, En, copy.deepcopy(self.dnn))
+    
+    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4):
         # Histories
-        En_history = np.zeros(epochs*minibatches)
-        epoch_loss_history = np.zeros(epochs)
+        self.En_history = np.zeros(epochs*minibatches)
+        self.epoch_loss_history = np.zeros(epochs)
         c = driver(0)
 
         bar = tqdm(range(epochs))
+        n_train = grid.shape[0]
 
         for epoch in bar:
             X_train = perturb(grid)
@@ -37,7 +58,7 @@ class EigenvalueProblemModel:
             for n in range(minibatches):
                 X_minibatch = X_batch[batch_start:batch_end]
                 nn, En = self.dnn(X_minibatch)
-                En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
+                self.En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
 
                 psi = self.composition(X_minibatch, nn)
                 L_PDE = self.PDE_loss(X_minibatch, psi, En)
@@ -62,27 +83,31 @@ class EigenvalueProblemModel:
                 batch_start += batch_size
                 batch_end += batch_size
             
-            epoch_loss_history[epoch] = epoch_loss
+            self.epoch_loss_history[epoch] = epoch_loss
+            self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss)
             bar.set_description(f"Loss: {epoch_loss:.4e}")
     
-        self.histories = {
-            "En": En_history,
-            "epoch": epoch_loss_history
-        }
-    
     def plot_history(self):
-        plt.plot(self.histories["epoch"])
+        plt.plot(self.epoch_loss_history)
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.yscale("log")
         plt.title("Loss over the epochs on log scale")
         plt.grid()
         plt.show()
-        plt.plot(self.histories["En"])
+        plt.plot(self.En_history)
         plt.xlabel("Epochs")
         plt.ylabel("Eigenvalue")
         plt.title("Change of eigenvalue over epochs")
         plt.grid()
         plt.show()
+    
+    def get_eigenfunction(self, marker):
+        dnn = self.eigenfunctions[marker][2]
+        def wrapper(x):
+            nn, _ = dnn(x)
+            return self.composition(x, nn)
+        return wrapper
+
 
 

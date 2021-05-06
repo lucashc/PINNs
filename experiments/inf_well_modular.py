@@ -3,6 +3,8 @@ from models.helper import perturb1D, Sin, dfx
 import torch
 from functools import partial
 import numpy as np
+import matplotlib.pyplot as plt
+
 L = 1
 x_min = 0
 x_max = L
@@ -26,6 +28,17 @@ def driver(index):
 grid = torch.linspace(x_min, x_max, 100).reshape(-1, 1)
 
 model = EigenvalueProblemModel([1, 10, 10, 1], Sin, compose_psi, PDE_loss)
-model.train(driver, grid, partial(perturb1D, x_min=x_min, x_max=x_max), int(125e3), 100, 1)
+model.train(driver=driver, drive_step=2500, grid=grid, perturb=partial(perturb1D, x_min=x_min, x_max=x_max), epochs=int(125e3), minibatches=1, max_required_loss=1e-4)
 model.plot_history()
-np.save("En.npy", np.array(model.histories["En"]))
+
+large_grid = torch.linspace(x_min, x_max, 400).reshape(-1, 1)
+
+for marker in model.eigenfunctions.keys():
+    y = model.get_eigenfunction(marker)(large_grid)
+    plt.plot(large_grid.reshape(-1).numpy(), y.reshape(-1).detach().numpy())
+    plt.xlabel("x")
+    plt.ylabel("$\Psi(x)$")
+    plt.xlim(x_min, x_max)
+    plt.grid()
+    plt.title(f"Eigenfunction {marker} with energy {model.eigenfunctions[marker][1]}")
+    plt.show() 
