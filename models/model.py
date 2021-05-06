@@ -20,11 +20,11 @@ class EigenvalueProblemModel:
         stub = lambda: (float('inf'), None, None)
         self.eigenfunctions = defaultdict(stub)
     
-    def detect(self, index, L_PDE, drive_step, max_required_loss):
+    def detect(self, index, L_PDE, drive_step, max_required_loss, rtol, fraction):
         En = self.En_history[index]
         # Empirically, rtol=0.001 and drive_step//3 seem like good factors
-        previous_close = np.sum(np.isclose(self.En_history[index-drive_step:index], En, atol=0, rtol=0.001))
-        if previous_close > drive_step//3:
+        previous_close = np.sum(np.isclose(self.En_history[index-drive_step:index], En, atol=0, rtol=rtol))
+        if previous_close > drive_step//fraction:
             marker = f"{En:1.1e}"
             if L_PDE < max_required_loss and L_PDE < self.eigenfunctions[marker][0]:
                 if self.eigenfunctions[marker][1] is None:
@@ -33,7 +33,7 @@ class EigenvalueProblemModel:
                     tqdm.write(f"    Detected better eigenfunction {marker} with energy {En} and loss {L_PDE}")
                 self.eigenfunctions[marker] = (L_PDE, En, copy.deepcopy(self.dnn))
     
-    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4):
+    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3):
         # Histories
         self.En_history = np.zeros(epochs*minibatches)
         self.epoch_loss_history = np.zeros(epochs)
@@ -84,7 +84,7 @@ class EigenvalueProblemModel:
                 batch_end += batch_size
             
             self.epoch_loss_history[epoch] = epoch_loss
-            self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss)
+            self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
             bar.set_description(f"Loss: {epoch_loss:.4e}")
     
     def plot_history(self):

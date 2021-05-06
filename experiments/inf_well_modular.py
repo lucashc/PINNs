@@ -28,7 +28,7 @@ def driver(index):
 grid = torch.linspace(x_min, x_max, 100).reshape(-1, 1)
 
 model = EigenvalueProblemModel([1, 10, 10, 1], Sin, compose_psi, PDE_loss)
-model.train(driver=driver, drive_step=2500, grid=grid, perturb=partial(perturb1D, x_min=x_min, x_max=x_max), epochs=int(125e3), minibatches=1, max_required_loss=1e-4)
+model.train(driver=driver, drive_step=2500, grid=grid, perturb=partial(perturb1D, x_min=x_min, x_max=x_max), epochs=int(400e3), minibatches=1, max_required_loss=1e-3, fraction=3, rtol=0.001)
 model.plot_history()
 
 large_grid = torch.linspace(x_min, x_max, 400).reshape(-1, 1)
