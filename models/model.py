@@ -9,8 +9,8 @@ import copy
 
 
 class EigenvalueProblemModel:
-    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999]):
-        self.dnn = EigenDNN(layers, activation)
+    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0):
+        self.dnn = EigenDNN(layers, activation, start_eigenvalue)
         self.optimizer = torch.optim.Adam(self.dnn.parameters(), lr=lr, betas=betas)
         self.composition = composition
         self.PDE_loss = PDE_loss
@@ -36,6 +36,7 @@ class EigenvalueProblemModel:
     def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3):
         # Histories
         self.En_history = np.zeros(epochs*minibatches)
+        self.L_PDE_history = np.zeros(epochs*minibatches)
         self.epoch_loss_history = np.zeros(epochs)
         c = driver(0)
 
@@ -72,7 +73,9 @@ class EigenvalueProblemModel:
 
                 L_reg = L_drive + L_lambda + L_f
 
-                L_tot = L_reg + L_PDE
+                L_tot = L_reg + 100*L_PDE
+
+                self.L_PDE_history[epoch*minibatches + n] = L_PDE.data.numpy()
 
                 # Train
                 L_tot.backward(retain_graph=False)
@@ -85,14 +88,16 @@ class EigenvalueProblemModel:
             
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
-            bar.set_description(f"Loss: {epoch_loss:.4e}")
+            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}")
     
     def plot_history(self):
-        plt.plot(self.epoch_loss_history)
+        plt.plot(self.epoch_loss_history, label="Epoch loss")
+        plt.xlabel("Epochs")
+        plt.plot(self.L_PDE_history, label="PDE loss")
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.yscale("log")
-        plt.title("Loss over the epochs on log scale")
+        plt.title("Loss on log scale")
         plt.grid()
         plt.show()
         plt.plot(self.En_history)

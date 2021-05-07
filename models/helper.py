@@ -7,7 +7,7 @@ class Sin(torch.nn.Module):
 
 
 def dfx(x, f):
-    return torch.autograd.grad([f], [x], grad_outputs=torch.ones_like(x), create_graph=True)[0]
+    return torch.autograd.grad([f], [x], grad_outputs=torch.ones_like(f), create_graph=True)[0]
 
 
 def perturb1D(grid, x_min, x_max, sig=0.5):
