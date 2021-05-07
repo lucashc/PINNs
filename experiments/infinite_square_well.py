@@ -60,8 +60,6 @@ def c_update(i):
     return -4 + i
 
 
-
-
 class DNN(torch.nn.Module):
     def __init__(self, hidden_size=10):
         super().__init__()
