@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import copy
 from collections import defaultdict
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+#os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 # Settings
 
