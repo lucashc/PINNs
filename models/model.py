@@ -1,5 +1,6 @@
 import torch
 from .EigenDNN import EigenDNN
+from .helper import driver_loss
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +34,7 @@ class EigenvalueProblemModel:
                     tqdm.write(f"    Detected better eigenfunction {marker} with energy {En} and loss {L_PDE}")
                 self.eigenfunctions[marker] = (L_PDE, En, copy.deepcopy(self.dnn))
     
-    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3):
+    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3, driver_loss=driver_loss):
         # Histories
         self.En_history = np.zeros(epochs*minibatches)
         self.L_PDE_history = np.zeros(epochs*minibatches)
@@ -67,7 +68,7 @@ class EigenvalueProblemModel:
                 # Update driver
                 c = driver(epoch+1)
 
-                L_drive = torch.mean(torch.exp(-En+c))
+                L_drive = driver_loss(En, c)
                 L_lambda = 1/(torch.mean(En**2))
                 L_f = 1/(torch.mean(nn**2))
 

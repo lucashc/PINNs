@@ -27,3 +27,6 @@ def perturb2D(grid_xx, grid_yy, x_min, x_max, y_min, y_max, sig=0.5):
     xx = perturb1D(grid_xx.flatten(), x_min, x_max, sig).reshape(grid_xx.shape)
     yy = perturb1D(grid_yy.flatten(), y_min, y_max, sig).reshape(grid_yy.shape)
     return xx, yy
+
+def driver_loss(En, c):
+    return torch.mean(torch.exp(-En+c))
