@@ -1,4 +1,6 @@
 import torch
+import os
+from functools import lru_cache
 
 class Sin(torch.nn.Module):
     @staticmethod
@@ -28,5 +30,21 @@ def perturb2D(grid_xx, grid_yy, x_min, x_max, y_min, y_max, sig=0.5):
     yy = perturb1D(grid_yy.flatten(), y_min, y_max, sig).reshape(grid_yy.shape)
     return xx, yy
 
+
 def driver_loss(En, c):
     return torch.mean(torch.exp(-En+c))
+
+
+@lru_cache(1)
+def get_default_device() -> torch.device:
+    """Obtains the default Compute device for PyTorch from the environment.
+
+    Returns:
+        torch.device: The found device.
+    """
+    if tmp := os.environ.get("GPU_ID"):
+        print(f"Running at GPU {tmp}")
+        return torch.device(f"cuda:{int(tmp)}")
+    else:
+        print("Running at CPU")
+        return torch.device('cpu')
