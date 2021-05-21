@@ -8,6 +8,7 @@ import time
 import copy
 from scipy.integrate import odeint
 dtype=torch.float
+from tqdm import tqdm
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 %matplotlib inline

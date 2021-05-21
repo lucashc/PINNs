@@ -1,10 +1,12 @@
-import torch
+#%%
+# import torch
 import numpy as np
 from scipy.constants import hbar, m_e
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import copy
 from collections import defaultdict
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 # Settings
 
@@ -82,6 +84,31 @@ class DNN(torch.nn.Module):
         L2 = self.Lin_2(h1)
         h2 = self.activation(L2)
         out = self.final(h2)
+        return out, eigenvalue
+
+class DNN2D(torch.nn.Module):
+    def __init__(self, hidden_size=10):
+        super().__init__()
+
+        self.activation = Sin()
+
+        self.Ein = torch.nn.Linear(1, 1, bias=False)
+        self.Lin_1 = torch.nn.Linear(3, hidden_size)
+        self.Lin_2 = torch.nn.Linear(hidden_size, hidden_size)
+        self.Lin_3 = torch.nn.Linear(hidden_size, hidden_size)
+        self.final = torch.nn.Linear(hidden_size, 1)
+    
+    def forward(self, x):
+        # Lambda
+        eigenvalue = self.Ein(torch.ones_like(x))
+        # Actual network
+        L1 = self.Lin_1(torch.cat((x, eigenvalue), 1))
+        h1 = self.activation(L1)
+        L2 = self.Lin_2(h1)
+        h2 = self.activation(L2)
+        L3 = self.Lin_2(h2)
+        h3 = self.activation(L2)
+        out = self.final(h3)
         return out, eigenvalue
 
 def train(hidden_size, epochs, n_train, lr, minibatches=1):
@@ -225,3 +252,5 @@ for i in range(11):
         plt.show()
 
 
+
+# %%

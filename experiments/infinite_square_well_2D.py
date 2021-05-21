@@ -8,7 +8,17 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import copy
 from collections import defaultdict
+import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+if torch.cuda.is_available():
+    if input("Use GPU? [y/n]")=="y":
+        dev = "cuda"
+    else:
+        dev = "cpu"
+else:
+    print("GPU not availible to PyTorch")
+    dev = "cpu"
+device = torch.device(dev)
 
 # Settings
 
@@ -64,7 +74,7 @@ def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
     return x
 
 def c_update(i):
-    return 4. + i
+    return 1. + i
 
 
 
@@ -76,7 +86,7 @@ class DNN2D(torch.nn.Module):
         self.activation = Sin()
 
         self.Ein = torch.nn.Linear(1, 1, bias=False)
-        self.Ein.weight.data.fill_(1.)
+        self.Ein.weight.data.fill_(6.)
         self.Lin_1 = torch.nn.Linear(3, hidden_size)
         self.Lin_2 = torch.nn.Linear(hidden_size, hidden_size)
         self.Lin_3 = torch.nn.Linear(hidden_size, hidden_size)
@@ -92,13 +102,14 @@ class DNN2D(torch.nn.Module):
         h2 = self.activation(L2)
         # L3 = self.Lin_2(h2)
         # h3 = self.activation(L3)
-        out = self.final(h2)
+        out = self.final(h2).to(device)
         return out, eigenvalue
 
 #%%
 def train(hidden_size, epochs, n_train, lr, minibatches=1):
     # Network initalization
     network = DNN2D(hidden_size)
+    network = network.to(device)
     betas = [0.999, 0.9999]
     optimizer = torch.optim.Adam(network.parameters(), lr=lr, betas=betas)
 
@@ -126,7 +137,7 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
     c = c_update(0)
     c_index = 0
 
-    bar = tqdm(range(epochs), desc="Energy: ~")
+    bar = tqdm(range(epochs), desc="Energy: ~; c: ~")
 
     for epoch in bar:
 
@@ -147,8 +158,9 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
         for n in range(minibatches):
 
             x_minibatch = x_batch[batch_start:batch_end, :]
+            x_minibatch = x_minibatch.to(device)
             nn, En = network(x_minibatch)
-            En_history.append(En[0].data.numpy()[0])
+            En_history.append(En[0].detach().cpu().numpy()[0])
 
             psi = compose_psi(x_minibatch, nn)
             L_PDE = PDE_loss(x_minibatch, psi, En)
@@ -164,13 +176,13 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
 
             L_reg = L_drive + L_lambda + L_f
 
-            L_tot = .1*L_reg + L_PDE
+            L_tot = 1e-3*L_reg + L_PDE
 
             # Log
-            L_PDE_history.append(L_PDE.detach().numpy())
-            L_f_history.append(L_f.detach().numpy())
-            L_drive_history.append(L_drive.detach().numpy())
-            L_lambda_history.append(L_lambda.detach().numpy())
+            L_PDE_history.append(L_PDE.detach().cpu().numpy())
+            L_f_history.append(L_f.detach().cpu().numpy())
+            L_drive_history.append(L_drive.detach().cpu().numpy())
+            L_lambda_history.append(L_lambda.detach().cpu().numpy())
             #L_tot_history.append(L_tot)
             #c_history.append(c)
 
@@ -178,21 +190,21 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
 
             L_tot.backward(retain_graph=False)
             optimizer.step()
-            epoch_loss += L_tot.data.numpy()
+            epoch_loss += L_tot.detach().cpu().numpy()
             optimizer.zero_grad()
 
             batch_start += batch_size
             batch_end += batch_size
         
         
-        E_bin = abs(En[0].data.numpy()[0]//10)
-        criterion = L_PDE.clone().detach().numpy()
+        E_bin = abs(En[0].detach().cpu().numpy()[0]//10)
+        criterion = L_PDE.clone().detach().cpu().numpy()
         if criterion < storage[E_bin][1]:
             storage[E_bin] = (copy.deepcopy(network), criterion)
 
         
         epoch_loss_history.append(epoch_loss)
-        bar.set_description(f"Energy: {En[0].data.numpy()[0]:.4e}")
+        bar.set_description(f"Energy: {En[0].detach().cpu().numpy()[0]:.4e}; c: {int(c):2d}")
 
 
     histories = {
@@ -207,35 +219,36 @@ def train(hidden_size, epochs, n_train, lr, minibatches=1):
     }
     return network, histories, storage
 
-model, hist, storage = train(50, int(25e3), 11, 8e-3, 1)
+model, hist, storage = train(50, int(80e3), 11, 8e-3, 1)
 #%%
-plt.loglog(hist["epoch"], label='epoch')
-plt.loglog(hist["PDE"], label='PDE')
-plt.loglog(hist["drive"], label='drive')
-plt.loglog(hist["f"], label='f')
-plt.loglog(hist["lambda"], label='lambda')
+plt.semilogy(hist["epoch"], label='epoch')
+plt.semilogy(hist["PDE"], label='PDE')
+plt.semilogy(hist["drive"], label='drive')
+plt.semilogy(hist["f"], label='f')
+plt.semilogy(hist["lambda"], label='lambda')
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
-plt.title("Loss over the epochs on loglog scale")
+plt.title("Loss over the epochs on log y scale")
 plt.grid()
 plt.legend()
 plt.show()
 
-plt.semilogx(hist["En"])
+plt.figure()
+plt.plot(hist["En"])
 plt.xlabel("Epochs")
 plt.ylabel("Eigenvalue")
 plt.title("Change of eigenvalue over epochs")
 plt.grid()
 plt.show()
 # %%
-nn = storage[2][0]
+nn = storage[3][0]
 X, Y = torch.meshgrid(torch.linspace(0,1,100),torch.linspace(0,1,100))
 XY = torch.cat([X.reshape(-1,1), Y.reshape(-1,1)], dim=1)
 fig, ax = plt.subplots(subplot_kw={"projection":"3d"})
-Z = compose_psi(XY, nn(XY)[0]).reshape(100,100)
+Z = compose_psi(XY.to(device), nn(XY.to(device))[0]).reshape(100,100)
 # Z = compose_psi(XY, torch.ones_like(XY[:,0])).reshape(10,10)
 surf = ax.plot_surface(X.detach().numpy(),
                        Y.detach().numpy(),
-                       Z.detach().numpy(),
+                       Z.detach().cpu().numpy(),
                        cmap=cm.coolwarm)
 plt.show()
