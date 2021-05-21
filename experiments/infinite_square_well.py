@@ -5,6 +5,8 @@ from scipy.constants import hbar, m_e
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import copy
+import os
+import torch
 from collections import defaultdict
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 

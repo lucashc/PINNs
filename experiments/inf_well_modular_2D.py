@@ -50,12 +50,12 @@ def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
     return x
 
 def driver(index):
-    return 9+0.25*(index//3000)
+    return 1. + (index//1500)
 
 grid1D = torch.linspace(x_min, x_max, 10)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=1e-4, start_eigenvalue=9.0)
-model.train(driver, 3000, grid, perturb, int(125e3), max_required_loss=1e-2, rtol=0.01, fraction=6)
+model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=1e-4, start_eigenvalue=6.0)
+model.train(driver, 1500, grid, perturb, int(5e3), max_required_loss=1e-2, rtol=0.01, fraction=6)
 model.plot_history()
