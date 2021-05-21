@@ -34,7 +34,7 @@ class EigenvalueProblemModel:
                     tqdm.write(f"    Detected better eigenfunction {marker} with energy {En} and loss {L_PDE}")
                 self.eigenfunctions[marker] = (L_PDE, En, copy.deepcopy(self.dnn))
     
-    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3, driver_loss=driver_loss):
+    def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3, driver_loss=driver_loss, reg_param=1, pde_param=100):
         # Histories
         self.En_history = np.zeros(epochs*minibatches)
         self.L_PDE_history = np.zeros(epochs*minibatches)
@@ -52,13 +52,13 @@ class EigenvalueProblemModel:
             batch_size = n_train // minibatches
             batch_start, batch_end = 0, batch_size
 
-            X_batch = X_train[random_order]
+            X_batch = X_train[random_order,:]
             X_batch.requires_grad = True
 
             epoch_loss = 0.0
 
             for n in range(minibatches):
-                X_minibatch = X_batch[batch_start:batch_end]
+                X_minibatch = X_batch[batch_start:batch_end, :]
                 nn, En = self.dnn(X_minibatch)
                 self.En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
 
@@ -70,11 +70,11 @@ class EigenvalueProblemModel:
 
                 L_drive = driver_loss(En, c)
                 L_lambda = 1/(torch.mean(En**2))
-                L_f = 1/(torch.mean(nn**2))
+                L_f = 1/(torch.mean(psi**2))
 
                 L_reg = L_drive + L_lambda + L_f
 
-                L_tot = L_reg + 100*L_PDE
+                L_tot = reg_param*L_reg + pde_param*L_PDE
 
                 self.L_PDE_history[epoch*minibatches + n] = L_PDE.data.numpy()
 

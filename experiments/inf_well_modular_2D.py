@@ -33,7 +33,7 @@ def compose_psi(x, N):
     psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max)) * (1 - torch.exp(dt[:,1]-x_max)) * N.reshape(-1)
     return psi
 
-def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
+def perturb(grid, x_max=0, x_min=1, n_train=11, sig=0.05):
     noise = torch.randn_like(grid) * sig
     x = grid + noise
     # Make sure perturbation still lay in domain
@@ -52,10 +52,10 @@ def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
 def driver(index):
     return 1. + (index//1500)
 
-grid1D = torch.linspace(x_min, x_max, 10)
+grid1D = torch.linspace(x_min, x_max, 11)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=1e-4, start_eigenvalue=6.0)
-model.train(driver, 1500, grid, perturb, int(5e3), max_required_loss=1e-2, rtol=0.01, fraction=6)
+model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=6.0)
+model.train(driver, 1500, grid, perturb, int(10e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1, pde_param=1.)
 model.plot_history()
