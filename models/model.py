@@ -76,7 +76,7 @@ class EigenvalueProblemModel:
 
                 L_tot = reg_param*L_reg + pde_param*L_PDE
 
-                self.L_PDE_history[epoch*minibatches + n] = L_PDE.data.numpy()
+                self.L_PDE_history[epoch*minibatches + n] = L_PDE.detach().numpy()
 
                 # Train
                 L_tot.backward(retain_graph=False)
@@ -89,7 +89,7 @@ class EigenvalueProblemModel:
             
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
-            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}")
+            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {int(c)}")
     
     def plot_history(self):
         plt.plot(self.epoch_loss_history, label="Epoch loss")
@@ -100,6 +100,7 @@ class EigenvalueProblemModel:
         plt.yscale("log")
         plt.title("Loss on log scale")
         plt.grid()
+        plt.legend()
         plt.show()
         plt.plot(self.En_history)
         plt.xlabel("Epochs")

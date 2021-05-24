@@ -10,6 +10,7 @@ from matplotlib.cm import coolwarm
 # Settings
 
 L = 1 # m
+n_train = 11
 
 # Divide by zero avoidance
 eps = 1e-6
@@ -53,12 +54,12 @@ def perturb(grid, x_min=0., x_max=1., n_train=11, sig=0.05):
 def driver(index):
     return 1. + (index//1500)
 
-grid1D = torch.linspace(x_min, x_max, 11)
+grid1D = torch.linspace(x_min, x_max, n_train)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=6.0)
-model.train(driver, 1500, grid, perturb, int(10e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1, pde_param=1.)
+model = EigenvalueProblemModel([2, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=1.0)
+model.train(driver, 1500, grid, perturb, int(50e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1.)
 model.plot_history()
 
 grid1D = torch.linspace(x_min, x_max, 100)
