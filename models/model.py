@@ -69,8 +69,8 @@ class EigenvalueProblemModel:
                 c = driver(epoch+1)
 
                 L_drive = driver_loss(En, c)
-                L_lambda = 1/(torch.mean(En**2))
-                L_f = 1/(torch.mean(psi**2))
+                L_lambda = 1/(torch.mean(En**2)+1e-6)
+                L_f = 1/(torch.mean(nn**2)+1e-6)
 
                 L_reg = L_drive + L_lambda + L_f
 

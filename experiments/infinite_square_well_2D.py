@@ -57,7 +57,7 @@ def compose_psi(x, N):
     psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max)) * (1 - torch.exp(dt[:,1]-x_max)) * N.reshape(-1)
     return psi
 
-def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
+def perturb(grid, x_min=0, x_max=1, n_train=101, sig=0.05):
     noise = torch.randn_like(grid) * sig
     x = grid + noise
     # Make sure perturbation still lay in domain
@@ -89,7 +89,7 @@ class DNN2D(torch.nn.Module):
         self.Ein.weight.data.fill_(6.)
         self.Lin_1 = torch.nn.Linear(3, hidden_size)
         self.Lin_2 = torch.nn.Linear(hidden_size, hidden_size)
-        self.Lin_3 = torch.nn.Linear(hidden_size, hidden_size)
+        # self.Lin_3 = torch.nn.Linear(hidden_size, hidden_size)
         self.final = torch.nn.Linear(hidden_size, 1)
     
     def forward(self, x):

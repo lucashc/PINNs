@@ -33,7 +33,7 @@ def compose_psi(x, N):
     psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max)) * (1 - torch.exp(dt[:,1]-x_max)) * N.reshape(-1)
     return psi
 
-def perturb(grid, x_max=0, x_min=1, n_train=11, sig=0.05):
+def perturb(grid, x_min=0., x_max=1., n_train=11, sig=0.05):
     noise = torch.randn_like(grid) * sig
     x = grid + noise
     # Make sure perturbation still lay in domain
