@@ -5,6 +5,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from models.helper import dfx, Sin
 from models.model import EigenvalueProblemModel
+from matplotlib.cm import coolwarm
 
 # Settings
 
@@ -59,3 +60,24 @@ grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=6.0)
 model.train(driver, 1500, grid, perturb, int(10e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1, pde_param=1.)
 model.plot_history()
+
+grid1D = torch.linspace(x_min, x_max, 100)
+grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
+grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
+
+
+marker = input("Plot eigenvalue, marker: ['q'] to quit   ")
+while marker != 'q':
+    fig, ax = plt.subplots(subplot_kw={"projection":"3d"})
+    try:
+        psi = model.get_eigenfunction(marker)
+        Z = psi(grid).reshape(n_train,n_train)
+        surf = ax.plot_surface(grid2D_x.detach().numpy(),
+                               grid2D_y.detach().numpy(),
+                               Z.detach().numpy(),
+                               cmap = coolwarm)
+        plt.show()
+    except TypeError:
+        print("invalid input")
+    finally:
+        marker = input("Plot eigenvalue, marker: ['q'] to quit   ")
