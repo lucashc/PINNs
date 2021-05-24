@@ -72,7 +72,7 @@ while marker != 'q':
     fig, ax = plt.subplots(subplot_kw={"projection":"3d"})
     try:
         psi = model.get_eigenfunction(marker)
-        Z = psi(grid).reshape(n_train,n_train)
+        Z = psi(grid).reshape(100,100)
         surf = ax.plot_surface(grid2D_x.detach().numpy(),
                                grid2D_y.detach().numpy(),
                                Z.detach().numpy(),
