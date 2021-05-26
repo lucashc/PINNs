@@ -48,3 +48,10 @@ def get_default_device() -> torch.device:
     else:
         print("Running at CPU")
         return torch.device('cpu')
+def normalise1D(y, dx):
+    area = torch.trapz(y**2, dx=dx)
+    return y/torch.sqrt(area)
+
+def normalise2D(z, dx, dy):
+    volume = torch.trapz(torch.trapz(z**2, dx=dx), dx=dy)
+    return z/torch.sqrt(volume)
