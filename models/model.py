@@ -20,6 +20,7 @@ class EigenvalueProblemModel:
         # Format is: (Loss, En, Network)
         stub = lambda: (float('inf'), None, None)
         self.eigenfunctions = defaultdict(stub)
+        self.dnn_history = None
     
     def detect(self, index, L_PDE, drive_step, max_required_loss, rtol, fraction):
         En = self.En_history[index]
@@ -39,6 +40,7 @@ class EigenvalueProblemModel:
         self.En_history = np.zeros(epochs*minibatches)
         self.L_PDE_history = np.zeros(epochs*minibatches)
         self.epoch_loss_history = np.zeros(epochs)
+        self.dnn_history = []
         c = driver(0)
 
         bar = tqdm(range(epochs))
@@ -90,6 +92,8 @@ class EigenvalueProblemModel:
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
             bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {int(c)}")
+            if epoch%1000==0:
+                self.dnn_history.append(copy.deepcopy(self.dnn))
     
     def plot_history(self):
         plt.plot(self.epoch_loss_history, label="Epoch loss")
