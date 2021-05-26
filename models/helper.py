@@ -28,5 +28,15 @@ def perturb2D(grid_xx, grid_yy, x_min, x_max, y_min, y_max, sig=0.5):
     yy = perturb1D(grid_yy.flatten(), y_min, y_max, sig).reshape(grid_yy.shape)
     return xx, yy
 
+
 def driver_loss(En, c):
     return torch.mean(torch.exp(-En+c))
+
+
+def normalise1D(y, dx):
+    area = torch.trapz(y**2, dx=dx)
+    return y/torch.sqrt(area)
+
+def normalise2D(z, dx, dy):
+    volume = torch.trapz(torch.trapz(z**2, dx=dx), dx=dy)
+    return z/torch.sqrt(volume)
