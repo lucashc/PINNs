@@ -29,8 +29,6 @@ def compose_psi(x, N):
     psi = f_b + (1 - torch.exp(-dt)) * (1 - torch.exp(dt-x_max*2)) * N
     return psi
 
-    return x
-
 def driver(index):
     return -2+0.25*(index//2000)
 
