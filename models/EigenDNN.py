@@ -44,8 +44,10 @@ class EigenDNNMultiDimensional(torch.nn.Module):
         self.submodules = torch.nn.ModuleList([EigenDNN(layers, activation, start_eigenvalue/self.dims)] * self.dims)
     
     def forward(self, x):
-        outx, Ex = self.submodules[0](x[:,0].reshape(-1,1))
-        outy, Ey = self.submodules[1](x[:,1].reshape(-1,1))
-        eigenvalue = Ex + Ey
-        out = outx * outy
+        out = 1
+        eigenvalue = 0.
+        for d in range(self.dims):
+            outx, Ex = self.submodules[d](x[:,d].reshape(-1,1))
+            out = out*outx
+            eigenvalue += Ex
         return out, eigenvalue
