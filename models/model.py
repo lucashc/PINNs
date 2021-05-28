@@ -1,5 +1,5 @@
 import torch
-from .EigenDNN import EigenDNN
+from .EigenDNN import EigenDNN, EigenDNNMultiDimensional
 from .helper import driver_loss
 from tqdm import tqdm
 import numpy as np
@@ -11,7 +11,7 @@ import copy
 
 class EigenvalueProblemModel:
     def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0):
-        self.dnn = EigenDNN(layers, activation, start_eigenvalue)
+        self.dnn = EigenDNN(layers, activation, start_eigenvalue) if layers[0]==1 else EigenDNNMultiDimensional(layers, activation, start_eigenvalue)
         self.optimizer = torch.optim.Adam(self.dnn.parameters(), lr=lr, betas=betas)
         self.composition = composition
         self.PDE_loss = PDE_loss
