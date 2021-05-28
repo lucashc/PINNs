@@ -45,7 +45,7 @@ class EigenDNNMultiDimensional(torch.nn.Module):
     
     def forward(self, x):
         outx, Ex = self.submodules[0](x[:,0].reshape(-1,1))
-        outy, Ey = self.submodules[0](x[:,1].reshape(-1,1))
+        outy, Ey = self.submodules[1](x[:,1].reshape(-1,1))
         eigenvalue = Ex + Ey
         out = outx * outy
         return out, eigenvalue
