@@ -34,3 +34,23 @@ class EigenDNN(torch.nn.Module):
         eigenvalue = self.Eig(torch.ones((x.shape[0], 1)))
         out = self.layers(torch.cat((x, eigenvalue), 1))
         return out, eigenvalue
+
+class EigenDNNMultiDimensional(torch.nn.Module):
+    def __init__(self, layers, activation, start_eigenvalue=1.0):
+        super().__init__()
+        self.dims = layers[0]
+        if isinstance(start_eigenvalue, float) | isinstance(start_eigenvalue, int) :
+            start_eigenvalue = [start_eigenvalue / self.dims] * self.dims
+
+        # Build up network
+        layers[0] = 1
+        self.submodules = torch.nn.ModuleList([EigenDNN(layers, activation, start_eigenvalue[d]) for d in range(self.dims)])
+    
+    def forward(self, x):
+        out = 1
+        eigenvalue = 0.
+        for d in range(self.dims):
+            outx, Ex = self.submodules[d](x[:,d].reshape(-1,1))
+            out = out*outx
+            eigenvalue += Ex
+        return out, eigenvalue

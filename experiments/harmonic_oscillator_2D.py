@@ -5,10 +5,11 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from models.helper import dfx, Sin
 from models.model import EigenvalueProblemModel
+from matplotlib.cm import coolwarm
 
 # Solution on bounds
-x_min = -6
-x_max = 6
+x_min = -2
+x_max = 2
 
 def PDE_loss(x, psi, E):
     psi_dx = dfx(x, psi)
@@ -27,7 +28,7 @@ def compose_psi(x, N):
     psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max*2)) * (1 - torch.exp(dt[:,1]-x_max*2)) * N.reshape(-1)
     return psi
 
-def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
+def perturb(grid, x_min=-6, x_max=6, n_train=101, sig=0.4):
     noise = torch.randn_like(grid) * sig
     x = grid + noise
     # Make sure perturbation still lay in domain
@@ -44,12 +45,35 @@ def perturb(grid, x_max=0, x_min=1, n_train=101, sig=0.05):
     return x
 
 def driver(index):
-    return -2+0.25*(index//2000)
+    return -1.+0.25*(index//2000)
 
 grid1D = torch.linspace(x_min, x_max, 20)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 50, 50, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=1.0)
-model.train(driver, 3000, grid, perturb, int(1e5), max_required_loss=1e-2, rtol=0.01, fraction=6)
+model = EigenvalueProblemModel([2, 20, 20, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=0.5)
+model.train(driver, 2000, grid, perturb, int(8e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1)
 model.plot_history()
+
+n_plot = 100
+
+grid1D = torch.linspace(x_min, x_max, n_plot)
+grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
+grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
+
+marker = input("Plot eigenvalue, marker: ['q'] to quit   ")
+while marker != 'q':
+    fig, ax = plt.subplots(subplot_kw={"projection":"3d"})
+    try:
+        psi = model.get_eigenfunction(marker)
+        Z = psi(grid).reshape(n_plot,n_plot)
+        # Z = normalise2D(Z, dx, dy)
+        surf = ax.plot_surface(grid2D_x.detach().numpy(),
+                               grid2D_y.detach().numpy(),
+                               Z.detach().numpy(),
+                               cmap = coolwarm)
+        plt.show()
+    except TypeError:
+        print("invalid input")
+    finally:
+        marker = input("Plot eigenvalue, marker: ['q'] to quit   ")

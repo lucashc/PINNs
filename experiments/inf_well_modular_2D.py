@@ -52,14 +52,14 @@ def perturb(grid, x_min=0., x_max=1., n_train=11, sig=0.05):
     return x
 
 def driver(index):
-    return 1. + (index//1500)
+    return 6. + (index//2000)
 
 grid1D = torch.linspace(x_min, x_max, n_train)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=1.0)
-model.train(driver, 1500, grid, perturb, int(50e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1.)
+model = EigenvalueProblemModel([2, 15, 15, 15, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=[3., 4.])
+model.train(driver, 2000, grid, perturb, int(50e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1.)
 model.plot_history()
 
 
@@ -87,3 +87,11 @@ while marker != 'q':
         print("invalid input")
     finally:
         marker = input("Plot eigenvalue, marker: ['q'] to quit   ")
+# fig, ax = plt.subplots(subplot_kw={"projection":"3d"})
+# psi = model.composition(grid, model.dnn_history[3](grid)[0])
+# Z = psi.reshape(n_plot,n_plot)
+# surf = ax.plot_surface(grid2D_x.detach().numpy(),
+#                         grid2D_y.detach().numpy(),
+#                         Z.detach().numpy(),
+#                         cmap = coolwarm)
+# plt.show()
