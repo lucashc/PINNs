@@ -91,7 +91,7 @@ class EigenvalueProblemModel:
             
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
-            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {int(c)}")
+            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {c:.4e}")
             if epoch%1000==0:
                 self.dnn_history.append(copy.deepcopy(self.dnn))
     
