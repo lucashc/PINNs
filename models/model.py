@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import copy
+from sklearn.cluster import AgglomerativeClustering
 
 
 
@@ -91,7 +92,7 @@ class EigenvalueProblemModel:
             
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), drive_step, max_required_loss, rtol, fraction)
-            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {c:.3}")
+            bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {c:.4e}")
             if epoch%1000==0:
                 self.dnn_history.append(copy.deepcopy(self.dnn))
     
@@ -119,6 +120,34 @@ class EigenvalueProblemModel:
             nn, _ = dnn(x)
             return self.composition(x, nn)
         return wrapper
+    
+    def remove_redundancies(self, threshold, grid):
+        # Fix order
+        functions = list(self.eigenfunctions.items())
+        # Compute distance matrix
+        dist_matrix = np.zeros((len(functions), len(functions)))
+        for index1, func1 in enumerate(functions):
+            for index2, func2 in enumerate(functions):
+                dist_matrix[index1, index2] = torch.mean(torch.abs(torch.abs(func1[1][2](grid)[0])-torch.abs(func2[1][2](grid)[0])))
+
+        # Excute Hierachical clustering
+        clustering = AgglomerativeClustering(affinity="precomputed", n_clusters=None, distance_threshold=threshold, linkage="complete").fit(dist_matrix)
+        labels = clustering.labels_
+
+        print(f"Found {clustering.n_clusters_} clusters")
+
+        # Form relevant clusters
+        clusters = defaultdict(lambda: [])
+        for index, label in enumerate(labels):
+            clusters[label].append((functions[index]))
+        
+        # Reduce to only best
+        pruned = {}
+        for label in labels:
+            best_in_cluster = sorted(clusters[label], key=lambda x: x[1][0])[0]
+            pruned[best_in_cluster[0]] = best_in_cluster[1]
+        print(f"Pruned {len(functions)-len(pruned)} of total functions {len(functions)}")
+        return pruned
 
 
 
