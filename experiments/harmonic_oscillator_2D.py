@@ -8,8 +8,8 @@ from models.model import EigenvalueProblemModel
 from matplotlib.cm import coolwarm
 
 # Solution on bounds
-x_min = -2
-x_max = 2
+x_min = -6
+x_max = 6
 
 def PDE_loss(x, psi, E):
     psi_dx = dfx(x, psi)
@@ -24,18 +24,19 @@ def potential(x):
 
 def compose_psi(x, N):
     f_b = 0
-    dt = x - x_min
-    psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max*2)) * (1 - torch.exp(dt[:,1]-x_max*2)) * N.reshape(-1)
+    # dt = x - x_min
+    # psi = f_b + (1 - torch.exp(-dt[:, 0])) * (1 - torch.exp(-dt[:, 1])) * (1 - torch.exp(dt[:,0]-x_max*2)) * (1 - torch.exp(dt[:,1]-x_max*2)) * N.reshape(-1)
+    psi = f_b + (-x[:,0]**2-x[:,1]**2+x_max**2) / x_max**2 * N.reshape(-1)
     return psi
 
 def perturb(grid, x_min=-6, x_max=6, n_train=101, sig=0.4):
     noise = torch.randn_like(grid) * sig
     x = grid + noise
     # Make sure perturbation still lay in domain
-    x[x[:,0] < x_min, 0] = x_min - x[x[:,0] < x_min, 0]
-    x[x[:,0] > x_max, 0] = 2*x_max - x[x[:,0] > x_max, 0]
-    x[x[:,1] < x_min, 1] = x_min - x[x[:,1] < x_min, 1]
-    x[x[:,1] > x_max, 1] = 2*x_max - x[x[:,1] > x_max, 1]
+    r_2 = x[:,0]**2+x[:,1]**2
+    idx = r_2 > x_max**2
+    x[idx,0] = x_max**2 / r_2[idx] * x[idx,0]
+    x[idx,1] = x_max**2 / r_2[idx] * x[idx,1]
     # Make sure at least one point is at the boundaries
     # x[:n_train,0] = torch.zeros_like(x[:n_train,1])
     # x[-n_train:,0] = torch.ones_like(x[:n_train,1])
@@ -45,19 +46,19 @@ def perturb(grid, x_min=-6, x_max=6, n_train=101, sig=0.4):
     return x
 
 def driver(index):
-    return -1.+0.25*(index//2000)
+    return 1.+.25*(index//1000)
 
 grid1D = torch.linspace(x_min, x_max, 20)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
-model = EigenvalueProblemModel([2, 20, 20, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=0.5)
-model.train(driver, 2000, grid, perturb, int(8e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1)
+model = EigenvalueProblemModel([2, 20, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, betas=[0.9, 0.999], start_eigenvalue=[1.2, 0.8])
+model.train(driver, 2000, grid, perturb, int(60e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1)
 model.plot_history()
 
 n_plot = 100
 
-grid1D = torch.linspace(x_min, x_max, n_plot)
+grid1D = torch.linspace(-4., 4., n_plot)
 grid2D_x, grid2D_y = torch.meshgrid(grid1D,grid1D)
 grid = torch.cat([grid2D_x.reshape(-1,1), grid2D_y.reshape(-1,1)], dim=1)
 
