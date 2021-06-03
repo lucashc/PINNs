@@ -11,7 +11,7 @@ from sklearn.cluster import AgglomerativeClustering
 
 
 class EigenvalueProblemModel:
-    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0):
+    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0, normalize=False, lower_bound=None, upper_bound=None):
         self.dims = layers[0]
         if self.dims == 1:
             self.dnn = EigenDNN(layers, activation, start_eigenvalue)
@@ -27,6 +27,14 @@ class EigenvalueProblemModel:
         stub = lambda: (float('inf'), None, None, None)
         self.eigenfunctions = defaultdict(stub)
         self.dnn_history = None
+        self.normalize = normalize
+        if self.normalize:
+            if lower_bound is None or upper_bound is None:
+                raise ValueError("Upper and lower bound must be specified when using normalization")
+            else:
+                self.upper_bound = upper_bound
+                self.lower_bound = lower_bound
+
     
     def detect(self, index, L_PDE, eigenvalue_parts, drive_step, max_required_loss, rtol, fraction):
         En = self.En_history[index]
@@ -40,6 +48,13 @@ class EigenvalueProblemModel:
                 else:
                     tqdm.write(f"    Detected better eigenfunction {marker} with energy {En} and loss {L_PDE}")
                 self.eigenfunctions[marker] = (L_PDE, En, copy.deepcopy(self.dnn), eigenvalue_parts)
+    
+    def normalize_input_if_needed(self, x):
+        # Normalizes to range -1:1
+        if self.normalize:
+            return (x-self.lower_bound)/(self.upper_bound-self.lower_bound)*2-1
+        else:
+            return x
     
     def train(self, driver, drive_step, grid, perturb, epochs, minibatches=1, max_required_loss=1e-4, rtol=0.001, fraction=3, driver_loss=driver_loss, reg_param=1, pde_param=100):
         # Histories
@@ -69,7 +84,8 @@ class EigenvalueProblemModel:
 
             for n in range(minibatches):
                 X_minibatch = X_batch[batch_start:batch_end, :]
-                nn, En, En_parts = self.dnn(X_minibatch)
+                X_minibatch_normalized_when_needed = self.normalize_input_if_needed(X_minibatch)
+                nn, En, En_parts = self.dnn(X_minibatch_normalized_when_needed)
                 self.En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
                 if self.dims > 1:
                     self.En_parts_history[epoch*minibatches + n] = En_parts[0].data.numpy()
