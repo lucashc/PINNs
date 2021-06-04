@@ -1,4 +1,5 @@
 import torch
+torch.set_default_dtype(torch.float64)
 import numpy as np
 from scipy.constants import hbar, m_e
 from tqdm import tqdm
