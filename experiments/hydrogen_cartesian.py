@@ -27,7 +27,7 @@ def PDE_loss(x, psi, E):
     psi_dx = dfx(x, psi)
     psi_ddx = dfx(x, psi_dx[:,0])[:,0] + dfx(x, psi_dx[:,1])[:,1] + dfx(x, psi_dx[:, 2])[:, 2]
     r = torch.sqrt(torch.sum(x**2, dim=1))
-    diff = laplacian_prefactor*psi_ddx - 1/r * psi - energy_prefactor * E * psi
+    diff = laplacian_prefactor*psi_ddx + 1/r * psi + energy_prefactor * E * psi
     loss = torch.mean(diff**2)
     return loss
 
@@ -49,17 +49,20 @@ def perturb(grid):
     return x
 
 def driver(index):
-    return 2*E_0-0.01*E_0*(index//1000)
+    return 1.3*E_0-0.01*E_0*(index//1000)
 
 grid1D = torch.linspace(0, bohr_radius, 10)
 grid_x, grid_y, grid_z = torch.meshgrid(grid1D,grid1D, grid1D)
 grid = torch.cat([grid_x.reshape(-1,1), grid_y.reshape(-1,1), grid_z.reshape(-1, 1)], dim=1)
 
-model = EigenvalueProblemModel([3, 20, 20, 20, 1], Sin, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=1.2*E_0)
-model.train(driver, 2000, grid, perturb, int(60e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1)
+model = EigenvalueProblemModel([3, 20, 20, 20, 1], torch.nn.Tanh, compose_psi, PDE_loss, lr=8e-3, start_eigenvalue=1.2*E_0, lower_bound=0, upper_bound=bohr_radius)
+try:
+    model.train(driver, 1000, grid, perturb, int(60e3), max_required_loss=1e-2, rtol=0.01, fraction=6, reg_param=1e-3, pde_param=1)
+except KeyboardInterrupt:
+    print("Stopped...")
 model.plot_history()
 
-with open("hydrogen2.pickle", "wb") as f:
+with open("hydrogen3.pickle", "wb") as f:
     dill.dump(model, f)
 print("Saved")
 
