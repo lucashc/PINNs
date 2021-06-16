@@ -11,12 +11,12 @@ from sklearn.cluster import AgglomerativeClustering
 
 
 class EigenvalueProblemModel:
-    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0, normalize=False, lower_bound=None, upper_bound=None):
+    def __init__(self, layers, activation, composition, PDE_loss, lr=8e-3, betas=[0.999, 0.9999], start_eigenvalue=1.0, normalize=False, lower_bound=None, upper_bound=None, transformation=None, get_energy=lambda En,En_parts: En):
         self.dims = layers[0]
         if self.dims == 1:
             self.dnn = EigenDNN(layers, activation, start_eigenvalue)
         else:
-            self.dnn = EigenDNNMultiDimensional(layers, activation, start_eigenvalue)
+            self.dnn = EigenDNNMultiDimensional(layers, activation, start_eigenvalue, transformation)
         self.optimizer = torch.optim.Adam(self.dnn.parameters(), lr=lr, betas=betas)
         self.composition = composition
         self.PDE_loss = PDE_loss
@@ -34,6 +34,7 @@ class EigenvalueProblemModel:
             else:
                 self.upper_bound = upper_bound
                 self.lower_bound = lower_bound
+        self.get_energy = get_energy
 
     
     def detect(self, index, L_PDE, eigenvalue_parts, drive_step, max_required_loss, rtol, fraction):
@@ -85,8 +86,9 @@ class EigenvalueProblemModel:
             for n in range(minibatches):
                 X_minibatch = X_batch[batch_start:batch_end, :]
                 X_minibatch_normalized_when_needed = self.normalize_input_if_needed(X_minibatch)
-                nn, En, En_parts = self.dnn(X_minibatch_normalized_when_needed)
-                self.En_history[epoch*minibatches + n] = En[0].data.numpy()[0]
+                nn, En_tot, En_parts = self.dnn(X_minibatch_normalized_when_needed)
+                En = self.get_energy(En_tot, En_parts)
+                self.En_history[epoch*minibatches + n] = En.data.numpy()[0]
                 if self.dims > 1:
                     self.En_parts_history[epoch*minibatches + n] = En_parts[0].data.numpy()
 
@@ -115,6 +117,8 @@ class EigenvalueProblemModel:
                 batch_start += batch_size
                 batch_end += batch_size
             
+            if np.isnan(epoch_loss):
+                break
             self.epoch_loss_history[epoch] = epoch_loss
             self.detect(epoch, L_PDE.data.numpy(), En_parts, drive_step, max_required_loss, rtol, fraction)
             bar.set_description(f"Loss: {self.L_PDE_history[epoch*minibatches]:.4e}; Eigenvalue: {self.En_history[epoch*minibatches]:.4e}; c: {c:.4e}")

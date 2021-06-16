@@ -36,9 +36,10 @@ class EigenDNN(torch.nn.Module):
         return out, eigenvalue, None
 
 class EigenDNNMultiDimensional(torch.nn.Module):
-    def __init__(self, layers, activation, start_eigenvalue=1.0):
+    def __init__(self, layers, activation, start_eigenvalue=1.0, transformations=None):
         super().__init__()
         self.dims = layers[0]
+        self.transformations = transformations
         if isinstance(start_eigenvalue, float) | isinstance(start_eigenvalue, int) :
             start_eigenvalue = [start_eigenvalue / self.dims] * self.dims
 
@@ -51,7 +52,7 @@ class EigenDNNMultiDimensional(torch.nn.Module):
         eigenvalue = 0.
         eigenvalue_parts = []
         for d in range(self.dims):
-            outx, Ex, _ = self.submodules[d](x[:,d].reshape(-1,1))
+            outx, Ex, _ = self.submodules[d]((self.transformations[d](x) if self.transformations != None else x[:,d]).reshape(-1,1))
             out = out*outx
             eigenvalue += Ex
             eigenvalue_parts.append(Ex)
